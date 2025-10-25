@@ -62,9 +62,8 @@ namespace VRC_Discord_1
             InitializeComponent();
             DataContext = this;
 
-            // Initialize default values
-            StatusText = "待機中";
-            CurrentStatus = "無効";
+            // Check VRC config status on startup
+            CheckVRCConfigStatus();
         }
 
         private void EnableClick(object sender, RoutedEventArgs e)
@@ -72,6 +71,7 @@ namespace VRC_Discord_1
             Trace.WriteLine("Enable clicked");
             StatusText = "VRC Discord Presence が有効化されました";
             CurrentStatus = "有効";
+            WriteVRCConfigValue(false);
         }
 
         private void DisableClick(object sender, RoutedEventArgs e)
@@ -79,6 +79,56 @@ namespace VRC_Discord_1
             Trace.WriteLine("Disable clicked");
             StatusText = "VRC Discord Presence が無効化されました";
             CurrentStatus = "無効";
+            WriteVRCConfigValue(true);
+        }
+
+        private void CheckVRCConfigStatus()
+        {
+            try
+            {
+                string appDataPath = this.GetFolderLocalLow();
+                string vrcCfgPath = System.IO.Path.Combine(appDataPath, "VRChat\\VRChat\\config.json");
+
+                if (File.Exists(vrcCfgPath))
+                {
+                    string json = File.ReadAllText(vrcCfgPath);
+                    dynamic jsonObj = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
+                    
+                    if (jsonObj != null && jsonObj["disableRichPresence"] != null)
+                    {
+                        bool isDisabled = jsonObj["disableRichPresence"];
+                        if (isDisabled)
+                        {
+                            CurrentStatus = "無効";
+                            StatusText = "VRC Discord Presence は現在無効です";
+                        }
+                        else
+                        {
+                            CurrentStatus = "有効";
+                            StatusText = "VRC Discord Presence は現在有効です";
+                        }
+                    }
+                    else
+                    {
+                        // Config exists but no disableRichPresence property
+                        CurrentStatus = "有効";
+                        StatusText = "VRC Discord Presence は現在有効です";
+                    }
+                }
+                else
+                {
+                    // No config file exists, default to enabled
+                    CurrentStatus = "有効";
+                    StatusText = "VRC Discord Presence は現在有効です";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Error reading config, default to unknown status
+                CurrentStatus = "不明";
+                StatusText = "設定ファイルの読み込みに失敗しました";
+                Trace.WriteLine($"Error reading VRC config: {ex.Message}");
+            }
         }
 
         private void WriteVRCConfigValue(bool disableRichPresence)
